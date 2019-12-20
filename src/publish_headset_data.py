@@ -2,8 +2,10 @@
 
 import rospy
 from std_msgs.msg import String
-from camera_teleop.msg import HeadMotion
+from geometry_msgs.msg import PoseStamped
+import tf.transformations
 import socket
+from math import pi
 
 RATE = 20
 
@@ -15,21 +17,27 @@ def get_angle(i):
         i = 360+i
     return i
 
+def d2r(i):
+    return float(i) * pi / 180.0
+
 def vive_status_pub():
-    pub = rospy.Publisher('publish_headset_data', HeadMotion, queue_size=10)
+    pub_headquat = rospy.Publisher('/vive/twist5', PoseStamped, queue_size=10)
     rospy.init_node('vive_status', anonymous=True)
     rate = rospy.Rate(RATE)
     while not rospy.is_shutdown():
         buffer, addr = sock.recvfrom(2048)
         buffer = buffer.split(',')
-        rospy.loginfo(buffer)
-        head_motion = HeadMotion()
-        head_motion.angle1 = get_angle(buffer[4])
-        head_motion.speed1 = 30
-        head_motion.angle2 = get_angle(buffer[6])
-        head_motion.speed2 = 30
-        rospy.loginfo(head_motion)
-        pub.publish(head_motion)
+
+        head_pos = PoseStamped()
+        qt = tf.transformations.quaternion_from_euler(d2r(buffer[4]), d2r(buffer[5]), d2r(buffer[6]))
+        head_pos.header.stamp = rospy.Time.now()
+        head_pos.header.frame_id = "head"
+        head_pos.pose.orientation.x = qt[0]
+        head_pos.pose.orientation.y = qt[1]
+        head_pos.pose.orientation.z = qt[2]
+        head_pos.pose.orientation.w = qt[3]
+        pub_headquat.publish(head_pos)
+
         rate.sleep()
 
 if __name__ == '__main__':

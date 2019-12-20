@@ -26,7 +26,7 @@ def callback(pose):
     (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(quaternion)
     print str(roll) + ', ' + str(pitch) + ',' + str(yaw)
 
-    values = bytearray([0x80, rad2byte(roll), 30, rad2byte(yaw), 30, 0x7f])
+    values = bytearray([0x80, rad2byte(yaw), 30, rad2byte(pitch), 30, 0x7f])
     print [hex(i) for i in values]
     # print values
     com.write(values)

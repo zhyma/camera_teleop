@@ -31,7 +31,10 @@ def vive_status_pub():
         head_pos = PoseStamped()
         qt = tf.transformations.quaternion_from_euler(d2r(buffer[4]), d2r(buffer[5]), d2r(buffer[6]))
         head_pos.header.stamp = rospy.Time.now()
-        head_pos.header.frame_id = "head"
+        head_pos.header.frame_id = "map"
+        head_pos.pose.position.x = float(buffer[1])
+        head_pos.pose.position.y = float(buffer[2])
+        head_pos.pose.position.z = float(buffer[3])
         head_pos.pose.orientation.x = qt[0]
         head_pos.pose.orientation.y = qt[1]
         head_pos.pose.orientation.z = qt[2]

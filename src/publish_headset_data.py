@@ -52,20 +52,26 @@ def vive_status_pub():
     rospy.init_node('vive_status', anonymous=True)
     rate = rospy.Rate(RATE)
     while not rospy.is_shutdown():
-        buffer, addr = sock.recvfrom(2048)
-        buffer = buffer.split(',')
+        try:
+       	    sock.settimeout(1)
+            buffer, addr = sock.recvfrom(2048)
+            buffer = buffer.split(',')
 
-        head_pos, _= fillin_pos(buffer[1:7], [0, 0, 0])
-        right_pos, msg_r = fillin_pos(buffer[8:14], [-pi/2, pi, 0])
-        left_pos, msg_l = fillin_pos(buffer[15:26], [pi/2, pi, 0])
-        
-        pub_right.publish(right_pos)
-        pub_r.publish(msg_r)
-        pub_left.publish(left_pos)
-        pub_l.publish(msg_l)
-        pub_head.publish(head_pos)
+            head_pos, _= fillin_pos(buffer[1:7], [0, 0, 0])
+            right_pos, msg_r = fillin_pos(buffer[8:14], [-pi/2, pi, 0])
+            left_pos, msg_l = fillin_pos(buffer[15:26], [pi/2, pi, 0])
+            
+            pub_right.publish(right_pos)
+            pub_r.publish(msg_r)
+            pub_left.publish(left_pos)
+            pub_l.publish(msg_l)
+            pub_head.publish(head_pos)
 
-        rate.sleep()
+            rate.sleep()
+        except:
+            print 'no server detected, reconnecting'
+            sock.sendto('request', address)
+            rate.sleep()
 
 if __name__ == '__main__':
     address = ("130.215.206.220", 8001)

@@ -14,10 +14,9 @@ RATE = 20
 def d2r(i):
     return float(i) * pi / 180.0
 
-def fillin_pos(data, rot):
+def fillin_pos(data, rot=[0, 0, 0]):
     #rot is the offset of orientation for given frame
-    qt = tf.transformations.quaternion_from_euler(d2r(data[3])+rot[0],
-                                                  d2r(data[4])+rot[1], d2r(data[5])+rot[2])
+    qt = tf.transformations.quaternion_from_euler(d2r(data[3]), d2r(data[4]), d2r(data[5]), 'rxyz')
     pose = PoseStamped()
     pose.header.stamp = rospy.Time.now()
     pose.header.frame_id = "world"
@@ -82,9 +81,9 @@ def vive_status_pub():
             buffer = buffer.split(',')
             #print buffer
 
-            head_pos, _= fillin_pos(buffer[1:7], [0, 0, 0])
-            right_pos, msg_r = fillin_pos(buffer[8:14], [-pi/2, pi, 0])
-            left_pos, msg_l  = fillin_pos(buffer[15:21], [pi/2, pi, 0])
+            head_pos, _= fillin_pos(buffer[1:7])
+            right_pos, msg_r = fillin_pos(buffer[8:14])
+            left_pos, msg_l  = fillin_pos(buffer[15:21])
 
             
             joy_r = fillin_joy(buffer[22:29], 'controller_LHR_FF7FBBC0')

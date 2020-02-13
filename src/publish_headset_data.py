@@ -106,7 +106,7 @@ def vive_status_pub():
             sock.sendto('request', address)
 
 if __name__ == '__main__':
-    address = ("130.215.206.220", 23023)
+    address = ("130.215.206.121", 23023)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto('request', address)
     try:

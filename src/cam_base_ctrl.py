@@ -6,7 +6,7 @@ from geometry_msgs.msg import PoseStamped
 import tf.transformations
 from math import pi
 
-com = serial.Serial('/dev/ttyACM0', 57600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+com = serial.Serial('/dev/cam_ctrl', 57600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
 
 def rad2byte(i):
     i = int(i*180.0/pi)
@@ -36,7 +36,7 @@ def callback(pose):
 def listener():
     rospy.init_node('subscribe_headset_data', anonymous=True)
     # rospy.Subscriber('publish_headset_data', HeadMotion, callback)
-    rospy.Subscriber('/vive/twist5', PoseStamped, callback)
+    rospy.Subscriber('/cam_base_ctrl', PoseStamped, callback)
 
     rospy.spin()
 

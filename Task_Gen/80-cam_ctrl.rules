@@ -1,0 +1,2 @@
+KERNEL=="ttyACM*",ATTRS{idVendor}=="fff1", ATTRS{idProduct}=="ff48",NAME="cam_ctrl",SYMLINK+="cam_ctrl",GROUP="dialout",MODE="0666"
+

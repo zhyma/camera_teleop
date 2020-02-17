@@ -5,6 +5,8 @@ import numpy as np
 
 import rospy
 from std_msgs.msg import String, Int8
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
 
 class all_cams():
     head, right, left = range(3)
@@ -19,34 +21,16 @@ class videoThread(threading.Thread):
         self.width = 640
         self.height = 480
         self.curr_cam = 'head_cam'
-
-        # self.cam_selection = rospy.Subscriber('/cam_select', String, self.callback_cams, queue_size = 1)
-        # self.cam_head = rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_h, queue_size = 1)
-        # self.cam_right = rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_r, queue_size = 1)
-        # self.cam_left = rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_l, queue_size = 1)
+        self.bridge = CvBridge()
+        self.head_img = np.zeros((480, 640, 3), np.uint8)
+        self.right_img = np.zeros((self.height, self.width, 3), np.uint8)
+        self.left_img = np.zeros((self.height, self.width, 3), np.uint8)
 
         rospy.Subscriber('/cam_select', String, self.callback_cams, queue_size = 1)
-        rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_h, queue_size = 1)
-        rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_r, queue_size = 1)
-        rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_l, queue_size = 1)
-
-        # self.cap_pana = cv2.VideoCapture(
-        #     'v4l2src device=' + dev_pana + ' ! image/jpeg,width=1920,height=1080,framerate=30/1 ! decodebin ! videoconvert ! appsink')
-        # fps = self.cap_pana.get(cv2.CAP_PROP_FPS)
-        # print 'v4l2src device=' + dev_pana
-        # print "Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps)
-
-        # self.cap_webcam.append(cv2.VideoCapture(
-        #     'v4l2src device=' + dev_webcam[0] + ' ! image/jpeg,width=960,height=544,framerate=30/1 ! decodebin ! videoconvert ! appsink'))
-        # fps = self.cap_webcam[0].get(cv2.CAP_PROP_FPS)
-        # print 'v4l2src device=' + dev_webcam[0]
-        # print "Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps)
-
-        # self.cap_webcam.append(cv2.VideoCapture(
-        #     'v4l2src device=' + dev_webcam[1] + ' ! image/jpeg,width=960,height=544,framerate=30/1 ! decodebin ! videoconvert ! appsink'))
-        # fps = self.cap_webcam[1].get(cv2.CAP_PROP_FPS)
-        # print 'v4l2src device=' + dev_webcam[1]
-        # print "Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps)
+        rospy.Subscriber('/rs_head/image_raw', Image, self.callback_cam_h, queue_size = 1)
+        rospy.Subscriber('/rs_right/image_raw', Image, self.callback_cam_r, queue_size = 1)
+        rospy.Subscriber('/rs_left/image_raw', Image, self.callback_cam_l, queue_size = 1)
+        rospy.init_node('cam_stream', anonymous=True)
 
         self.out_send = cv2.VideoWriter(
         'appsrc ! videoconvert ! \
@@ -64,54 +48,46 @@ class videoThread(threading.Thread):
         self.curr_cam = data.data
 
     def callback_cam_h(self, data):
-        pass
+        try:
+            self.head_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print (e)
 
     def callback_cam_r(self, data):
-        pass
+        try:
+            self.right_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print (e)
 
     def callback_cam_l(self, data):
-        pass
+        try:
+            self.left_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print (e)
 
     def run(self):
         while self.running:
-            if self.curr_cam == 'head_cam':
-                ret, p_frame = self.cap_pana.read()
-                frame = p_frame[268:p_frame.shape[0] - 272, 0:p_frame.shape[1]]
-                self.out_send.write(frame)
-
-            elif self.curr_cam == 'right_cam':
-                ret, w_frame = self.cap_webcam[0].read()
-                black = np.zeros((self.height, 480, 3), np.uint8)
-                frame = np.concatenate((black, w_frame[2:w_frame.shape[0] - 2, 0:w_frame.shape[1]], black), axis=1)
-                self.out_send.write(frame)
+            if self.curr_cam == 'right_cam':
+                self.out_send.write(self.right_img)
+                cv2.imshow('send', self.right_img)
             elif self.curr_cam == 'left_cam':
-                ret, w_frame = self.cap_webcam[1].read()
-                black = np.zeros((self.height, 480, 3), np.uint8)
-                frame = np.concatenate((black, w_frame[2:w_frame.shape[0] - 2, 0:w_frame.shape[1]], black), axis=1)
-                self.out_send.write(frame)
+                self.out_send.write(self.left_img)
+                cv2.imshow('send', self.left_img)
+            else:
+                #frame = self.head_img[30:510, 0:960]
+                self.out_send.write(self.head_img)
+                #print frame.shape
+                cv2.imshow('send', self.head_img)
 
-            if not ret:
-                print('empty frame')
-                break
-
-            cv2.imshow('send', frame)
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
-            elif key & 0xFF == ord('s'):
-                if flag == 0:
-                    flag = 1
-                elif flag == 1:
-                    flag = 2
-                else:
-                    flag = 0
         self.running = False
         self.out_send.release()
         cv2.destroyAllWindows()
-        threading.Thread.exit()
 
 if __name__ == '__main__':
-    ip_addr = '130.215.206.182'
+    ip_addr = '130.215.206.121'
 
     v_thread = videoThread(0, 'videoT', ip_addr)
     v_thread.start()

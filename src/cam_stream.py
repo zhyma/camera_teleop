@@ -6,6 +6,10 @@ import numpy as np
 import rospy
 from std_msgs.msg import String, Int8
 
+class all_cams():
+    head, right, left = range(3)
+
+
 class videoThread(threading.Thread):
     def __init__(self, threadID, name, ip_addr):
         threading.Thread.__init__(self)
@@ -14,13 +18,17 @@ class videoThread(threading.Thread):
         self.t = 0
         self.width = 640
         self.height = 480
+        self.curr_cam = 'head_cam'
 
-        self.cam_select = rospy.Subscriber('/cam_select', String, self.callback_cams, queue_size = 1)
-        self.cam_head = rospy.Subscriber('/cam_select', String, self.callback_cam_h, queue_size = 1)
-        self.cam_right = rospy.Subscriber('/cam_select', String, self.callback_cam_r, queue_size = 1)
-        self.cam_left = rospy.Subscriber('/cam_select', String, self.callback_cam_l, queue_size = 1)
+        # self.cam_selection = rospy.Subscriber('/cam_select', String, self.callback_cams, queue_size = 1)
+        # self.cam_head = rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_h, queue_size = 1)
+        # self.cam_right = rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_r, queue_size = 1)
+        # self.cam_left = rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_l, queue_size = 1)
 
-
+        rospy.Subscriber('/cam_select', String, self.callback_cams, queue_size = 1)
+        rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_h, queue_size = 1)
+        rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_r, queue_size = 1)
+        rospy.Subscriber('/rs/color/image/raw', String, self.callback_cam_l, queue_size = 1)
 
         # self.cap_pana = cv2.VideoCapture(
         #     'v4l2src device=' + dev_pana + ' ! image/jpeg,width=1920,height=1080,framerate=30/1 ! decodebin ! videoconvert ! appsink')
@@ -52,26 +60,31 @@ class videoThread(threading.Thread):
 
         self.running = True
 
-    def callback_cams(self,data):
-        rot = data.transform.rotation
-        tran = data.transform.translation
-        self.loc_l = [tran.x, tran.y, tran.z]
-        self.rot_matrix_l = quaternion_matrix([rot.x, rot.y, rot.z, rot.w])[:3,:3]
+    def callback_cams(self, data):
+        self.curr_cam = data.data
+
+    def callback_cam_h(self, data):
+        pass
+
+    def callback_cam_r(self, data):
+        pass
+
+    def callback_cam_l(self, data):
+        pass
 
     def run(self):
-	flag = 0
         while self.running:
-            if flag == 0:
+            if self.curr_cam == 'head_cam':
                 ret, p_frame = self.cap_pana.read()
                 frame = p_frame[268:p_frame.shape[0] - 272, 0:p_frame.shape[1]]
                 self.out_send.write(frame)
 
-            elif flag == 1:
+            elif self.curr_cam == 'right_cam':
                 ret, w_frame = self.cap_webcam[0].read()
                 black = np.zeros((self.height, 480, 3), np.uint8)
                 frame = np.concatenate((black, w_frame[2:w_frame.shape[0] - 2, 0:w_frame.shape[1]], black), axis=1)
                 self.out_send.write(frame)
-            elif flag == 2:
+            elif self.curr_cam == 'left_cam':
                 ret, w_frame = self.cap_webcam[1].read()
                 black = np.zeros((self.height, 480, 3), np.uint8)
                 frame = np.concatenate((black, w_frame[2:w_frame.shape[0] - 2, 0:w_frame.shape[1]], black), axis=1)

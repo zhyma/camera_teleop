@@ -22,7 +22,7 @@ class videoThread(threading.Thread):
         self.height = 480
         self.curr_cam = 'head_cam'
         self.bridge = CvBridge()
-        self.head_img = np.zeros((480, 640, 3), np.uint8)
+        self.head_img = np.zeros((self.height, self.width, 3), np.uint8)
         self.right_img = np.zeros((self.height, self.width, 3), np.uint8)
         self.left_img = np.zeros((self.height, self.width, 3), np.uint8)
 
@@ -74,9 +74,7 @@ class videoThread(threading.Thread):
                 self.out_send.write(self.left_img)
                 cv2.imshow('send', self.left_img)
             else:
-                #frame = self.head_img[30:510, 0:960]
                 self.out_send.write(self.head_img)
-                #print frame.shape
                 cv2.imshow('send', self.head_img)
 
             key = cv2.waitKey(1)

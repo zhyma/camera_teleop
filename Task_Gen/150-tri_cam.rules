@@ -1,0 +1,2 @@
+KERNEL=="video*", ATTRS{idVendor}=="8086", ATTR{idProduct}=="0b3a", ATTR{serial}=="908323050243", SYMLINK+="rs_right", MODE="0666"
+

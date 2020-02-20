@@ -442,7 +442,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                 if self.vive_base_button_l[3] == 1:
                     while self.vive_base_button_l[3] == 1:
                         time.sleep(0.5)
-                    self.pub_cam.publish(String("left_cam"))
+                    
                     if self.plugin.ctrlMode == ctrlModeEnu.l2l:
                         # step "in" to the head control wrist mode
                         self.plugin.ctrlMode = ctrlModeEnu.h2l
@@ -452,16 +452,17 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         tran_l = [(self.loc_l[i] - self.loc_l_offset[i]) * self.scale[i] + self.loc_l_org[i] for i in range(3)]
                         self.loc_l_last = tran_l
                         self.rot_l_last = rot_l
+                        self.pub_cam.publish(String("h2l"))
                         print "head control left wrist camera"
                     else:
                         self.plugin.ctrlMode = ctrlModeEnu.l2l
+                        self.pub_cam.publish(String("l2l"))
                         print "left hand control left wrist camera"
 
                 # right grip triggered
                 elif self.vive_base_button_r[3] == 1: 
                     while self.vive_base_button_r[3] == 1:
                         time.sleep(0.5)
-                    self.pub_cam.publish(String("right_cam"))
                     if self.plugin.ctrlMode == ctrlModeEnu.r2r:
                         self.plugin.ctrlMode = ctrlModeEnu.h2r
                         rot_r = np.matmul(self.rot_r_offset, self.rot_matrix_r)
@@ -469,23 +470,24 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         tran_r = [(self.loc_r[i] - self.loc_r_offset[i]) * self.scale[i] + self.loc_r_org[i] for i in range(3)]
                         self.loc_r_last = tran_r
                         self.rot_r_last = rot_r
+                        self.pub_cam.publish(String("h2r"))
                         print "head control right wrist camera"
                     else:
                         self.plugin.ctrlMode = ctrlModeEnu.r2r
+                        self.pub_cam.publish(String("r2r"))
                         print "right hand control right wrist camera"
 
                 # switch to head control head camera for all other cases
                 else:
                     while self.vive_base_button_l[0] == 1:
                         time.sleep(0.5)
-                    self.pub_cam.publish(String("head_cam"))
+                    self.pub_cam.publish(String("h2h"))
                     self.plugin.ctrlMode = ctrlModeEnu.h2h
 
 
         # ----------------------------------------------------------------
         # This part uses vive controllers to control the end effectors
         if self.plugin.viveControl == True:
-            # TODO: forward head motion here, so every motion is controlled throught this interface
             if self.plugin.ctrlMode == ctrlModeEnu.h2h:
                 self.pub_cam_ctrl.publish(self.head_motion)
 

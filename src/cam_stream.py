@@ -20,7 +20,8 @@ class videoThread(threading.Thread):
         self.t = 0
         self.width = 640
         self.height = 480
-        self.curr_cam = 'head_cam'
+        self.curr_cam = 'head ctrl head cam'
+        self.curr_state = 'pause'
         self.bridge = CvBridge()
         self.head_img = np.zeros((self.height, self.width, 3), np.uint8)
         self.right_img = np.zeros((self.height, self.width, 3), np.uint8)
@@ -67,15 +68,32 @@ class videoThread(threading.Thread):
 
     def run(self):
         while self.running:
-            if self.curr_cam == 'right_cam':
-                self.out_send.write(self.right_img)
-                cv2.imshow('send', self.right_img)
-            elif self.curr_cam == 'left_cam':
-                self.out_send.write(self.left_img)
-                cv2.imshow('send', self.left_img)
+            if self.curr_cam == 'h2r':
+                frame = self.right_img.copy()
+                ctrl_text = 'Head ctrl right cam'
+            elif self.curr_cam == 'r2r':
+                frame = self.right_img.copy()
+                ctrl_text = 'Rhand ctrl right cam'
+            elif self.curr_cam == 'h2l':
+                frame = self.left_img.copy()
+                ctrl_text = 'Head ctrl left cam'
+            elif self.curr_cam == 'l2l':
+                frame = self.left_img.copy()
+                ctrl_text = 'LHand ctrl left cam'
             else:
-                self.out_send.write(self.head_img)
-                cv2.imshow('send', self.head_img)
+                frame = self.head_img.copy()
+                ctrl_text = 'Head ctrl head cam'
+                
+            frame = cv2.putText(frame, self.curr_state, (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
+                                    1, (255, 255, 255), 4, cv2.LINE_AA)
+            frame = cv2.putText(frame, self.curr_state, (50, 50), cv2.FONT_HERSHEY_SIMPLEX,
+                                    1, (0, 0, 0), 2, cv2.LINE_AA)
+            frame = cv2.putText(frame, ctrl_text, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                                    1, (255, 255, 255), 4, cv2.LINE_AA)
+            frame = cv2.putText(frame, ctrl_text, (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                                    1, (0, 0, 0), 2, cv2.LINE_AA)
+            self.out_send.write(frame)
+            #cv2.imshow('send', frame)
 
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):

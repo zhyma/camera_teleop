@@ -217,6 +217,8 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.vive_rot_button = [0,0,0,0]
         self.grippercent_l = 0
         self.grippercent_r = 0
+        self.gripperlock_l = False
+        self.gripperlock_r = False
         self.vive_rot_axes = [0,0,0]
 
         self.vive_base_axes_r = [1.0, 1.0, 1.0]
@@ -535,8 +537,25 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                 "safe":0,
                 'base_velocity': self.baseCommandVelocity
             }
-            self.pub_l.publish(self.grippercent_l)
-            self.pub_r.publish(self.grippercent_r)
+            
+            # Gripper action: pull the trigger will close it in precentage, when button is triggered, lock.
+            # when trigger the button again, release the gripper.
+            if self.vive_base_button_l[1] == 1:
+                while self.vive_base_button_l[1] == 1:
+                    time.sleep(0.2)  
+                self.gripperlock_l = not self.gripperlock_l
+                self.pub_l.publish(100)
+                
+            if self.vive_base_button_r[1] == 1:
+                while self.vive_base_button_r[1] == 1:
+                    time.sleep(0.2)
+                self.gripperlock_r = not self.gripperlock_r
+                self.pub_r.publish(100)
+                
+            if not self.gripperlock_l:
+                self.pub_l.publish(self.grippercent_l)
+            if not self.gripperlock_r:
+                self.pub_r.publish(self.grippercent_r)
 
             return pos_msg
 

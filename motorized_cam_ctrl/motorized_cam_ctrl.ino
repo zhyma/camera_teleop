@@ -22,10 +22,10 @@ Dynamixel Dxl(DXL_BUS_SERIAL1);
 // Yaw servo
 int filter_1(int input)
 {
-  if(input>90)
-   return 90; 
-  else if(input<-90)
-   return -90; 
+  if(input>45)
+   return 45; 
+  else if(input<-45)
+   return -45;
   else
     return input;
 }
@@ -33,10 +33,12 @@ int filter_1(int input)
 // Pitch servo
 int filter_2(int input)
 {
-  if(input > 30)
-    return 30; 
-  else if(input < -30)
-    return -30;
+  //pointing downward
+  if(input > 45)
+    return 45; 
+  //pointing up
+  else if(input < -45)
+    return -45;
   else
     return input;
 }
@@ -64,6 +66,7 @@ void setup()
  //nh.initNode();
  //nh.subscribe(sub);
  SerialUSB.begin();
+ headMotionData(1,0,200,2,0,200);
 }
 
 void loop() 
@@ -74,6 +77,8 @@ void loop()
       if (SerialUSB.available() > 0)
       {
         data[0] = SerialUSB.read();
+        // Expect input: 0x80, deg1, speed1, deg2, speed2, 0x7f
+        // speed is not used currently
         if(data[0] == 0x80 && SerialUSB.available() < 7)
         {
           int count = 0;

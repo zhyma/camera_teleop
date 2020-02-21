@@ -232,11 +232,15 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         rospy.Subscriber('/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_r, queue_size = 1)
         rospy.Subscriber('/vive/controller_LHR_FFFB7FC3/joy', Joy, self.callback_vive_l, queue_size = 1)
         self.pub_cam = rospy.Publisher('/cam_select', String, queue_size=1)
+        self.pub_state = rospy.Publisher('/vive_ctrl_status', String, queue_size=1)
         self.pub_cam_ctrl = rospy.Publisher('/cam_base_ctrl', PoseStamped, queue_size=1)
         self.pub_r = rospy.Publisher('/right/UbirosGentle', Int8, queue_size=1)
         self.pub_l = rospy.Publisher('/left/UbirosGentle', Int8, queue_size=1)
         rospy.init_node('talker', anonymous=True)
         self.cnt = 0
+        
+        self.pub_state.publish(String('pause'))
+        self.pub_cam.publish(String('h2h'))
 
     def callback_vive_l(self,data):
         self.vive_base_button_l = data.buttons
@@ -407,6 +411,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     time.sleep(0.5)
                 # start teleoperating the robot
                 if self.plugin.viveControl == False:
+                    self.pub_state.publish(String('controlling'))
                     self.plugin.viveControl = True
                     self.state_time = new_time
                     # if trigger is pulled, reset arm position and orientation,
@@ -429,6 +434,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
                 # stop teleoperating the robot
                 else:
+                    self.pub_state.publish(String('pause'))
                     self.plugin.viveControl = False
 
             return None

@@ -15,11 +15,7 @@ def search4dev(devices, cam):
         try:
             grep = subprocess.check_output(('grep', 'SERIAL_SHORT'), stdin=cmd.stdout)
         except subprocess.CalledProcessError as e:
-            # Ignore the error if the serial code does not exist
             pass
-        #print grep
-        #print type(grep)
-        #print rs_serials[cam]
         if rs_serials[cam] in grep:
             print 'Find device ' + i
             return i
@@ -35,7 +31,6 @@ def devBringUp(dev):
 
 if __name__ == '__main__':
     video_det = subprocess.Popen(['ls', '/dev'], stdout=subprocess.PIPE)
-    print video_det.stdout
     dev_list = []
     for i in video_det.stdout.readlines():
         if i[0]=='v' and 'video' in i:
@@ -59,13 +54,9 @@ if __name__ == '__main__':
     rs_right = devBringUp(['rs_right', rs_right_name])
     rs_left  = devBringUp(['rs_left', rs_left_name])
     
-    os.system('. /home/trina/UBIROS_prototype_code/build/devel/setup.bash')
     gripper = subprocess.Popen(['roslaunch', 'gentle_ros', 'gentle_ros_launcher1.launch'])
 
     cam_ctrl = subprocess.Popen(['python', 'cam_base_ctrl.py'])
-
-    #subprocess.Popen(["source", '~/UBIROS_prototype_code/build/devel/setup.bash'])
-    #gripper = subprocess.Popen(['roslaunch', 'gentle_ros', 'gentle_ros_launcher1.launch'])
 
     try:
         rs_head.wait()
@@ -77,7 +68,8 @@ if __name__ == '__main__':
         print 'quit rs_right'
         rs_left.send_signal(signal.SIGINT)
         print 'quit rs_left'
-        #gripper.send_signal(signal.SIGINT)
+        gripper.send_signal(signal.SIGINT)
+        print 'quit gripper'
         cam_ctrl.send_signal(signal.SIGINT)
         print 'quit cam_ctrl'
         

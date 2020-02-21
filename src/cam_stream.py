@@ -28,6 +28,7 @@ class videoThread(threading.Thread):
         self.left_img = np.zeros((self.height, self.width, 3), np.uint8)
 
         rospy.Subscriber('/cam_select', String, self.callback_cams, queue_size = 1)
+        rospy.Subscriber('/vive_ctrl_status', String, self.callback_state, queue_size = 1)
         rospy.Subscriber('/rs_head/image_raw', Image, self.callback_cam_h, queue_size = 1)
         rospy.Subscriber('/rs_right/image_raw', Image, self.callback_cam_r, queue_size = 1)
         rospy.Subscriber('/rs_left/image_raw', Image, self.callback_cam_l, queue_size = 1)
@@ -47,6 +48,9 @@ class videoThread(threading.Thread):
 
     def callback_cams(self, data):
         self.curr_cam = data.data
+        
+    def callback_state(self, data):
+        self.curr_state = data.data
 
     def callback_cam_h(self, data):
         try:

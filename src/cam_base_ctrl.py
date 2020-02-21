@@ -41,5 +41,6 @@ def listener():
     rospy.spin()
 
 if __name__ == '__main__':
+    print 'camera base control is now on'
     listener()
 

@@ -292,13 +292,13 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         if any(v < 0 for v in self.left_arm_link_indices+self.right_arm_link_indices):
             raise ValueError("Robot in world does not have Baxter's torso?")
 
-        # == subscribe marker position
-        self.marker = Marker()
-        self.base_height = 1.1
-        self.marker_pos = [0.0, 0.0, 0.0]
-        self.marker_pos_tf = [0.0, 0.0, 0.0]
-        #TODO: Same, check node and init  in the base class
-        #rospy.init_node('marker_listener', anonymous=True)
+        ## == subscribe marker position
+        #self.marker = Marker()
+        #self.base_height = 1.1
+        #self.marker_pos = [0.0, 0.0, 0.0]
+        #self.marker_pos_tf = [0.0, 0.0, 0.0]
+        ##TODO: Same, check node and init  in the base class
+        ##rospy.init_node('marker_listener', anonymous=True)
 
         #== auto tracking parameter
         self.tracking_speed_ratio = 1.0
@@ -416,6 +416,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     self.pub_state.publish(String('controlling'))
                     self.plugin.viveControl = True
                     self.state_time = new_time
+                    ## ----RESET THE POSE---- ##
                     # if trigger is pulled, reset arm position and orientation,
                     # otherwise, 
                     if self.vive_base_button_r[1] == 1:
@@ -497,12 +498,21 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         # This part uses vive controllers to control the end effectors
         if self.plugin.viveControl == True:
             if self.plugin.ctrlMode == ctrlModeEnu.h2h:
-                self.pub_cam_ctrl.publish(self.head_motion)
+                rot_h = np.matmul(self.rot_h_offset, self.rot_matrix_h)
+                rot_h = np.append(rot_h, [[0, 0, 0]], 0)
+                rot_h = np.append(rot_h, [[0], [0], [0], [1]], 1)
+                hm = PoseStamped()
+                pos = hm.pose.position
+                [pos.x, pos.y, pos.z] = [0, 0, 0]
+                ori = hm.pose.orientation
+                [ori.x, ori.y, ori.z, ori.w] = quaternion_from_matrix(rot_h)
+                self.pub_cam_ctrl.publish(hm)
 
             # if right wrist is controlled by head motion
             if self.plugin.ctrlMode == ctrlModeEnu.h2r:
                 rot_r = np.matmul(self.rot_h_offset, self.rot_matrix_h)
-                rot_r = np.matmul(rot_r, self.rot_r_last)
+                #rot_r = np.matmul(rot_r, self.rot_r_last)
+                rot_r = np.matmul(self.rot_r_last, rot_r)
                 #tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * self.scale[i] + self.loc_r_last[i] for i in range(3)]
                 tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_r_last[i] for i in range(3)]
             # otherwise use left hand motion control left hand (default)

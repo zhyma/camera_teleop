@@ -22,7 +22,7 @@ import asyncore
 
 import numpy as np
 import tf2_ros
-from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_matrix
+from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_matrix, quaternion_from_matrix, euler_matrix, euler_from_matrix
 from geometry_msgs.msg import TransformStamped, PoseStamped, Quaternion
 import tf
 from sensor_msgs.msg import Joy
@@ -275,6 +275,25 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.head_motion = data
 
     def name(self): return "Vive Hybrid Control mode (head and hand)"
+    
+    ## Convert HEAD motion to HAND
+    def cam_head_ctrl(self, rot_last):
+        rot_h = np.matmul(self.rot_h_offset, self.rot_matrix_h)
+        rot_h = np.append(rot_h, [[0, 0, 0]], 0)
+        rot_h = np.append(rot_h, [[0], [0], [0], [1]], 1)
+        
+        phi_h, theta_h, psi_h = euler_from_matrix(rot_h, 'rxyz')
+        
+        rot = np.copy(rot_last)
+        rot = np.append(rot, [[0, 0, 0]], 0)
+        rot = np.append(rot, [[0], [0], [0], [1]], 1)
+        phi, theta, psi = euler_from_matrix(rot, 'rxyz')
+        phi -= theta_h#-theta_h
+        theta -= 0#psi
+        psi = psi
+        rot = euler_matrix(phi, theta, psi, 'rxyz')[:3, :3]
+        
+        return rot
 
     def init(self,world):
         self.world = world
@@ -350,6 +369,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         res = self.do_logic()
         return res
 
+    ## MAIN LOGIC
     def do_logic(self):
         ''' retract arm to initial position '''
         if self.plugin.initialPose:
@@ -497,6 +517,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         # ----------------------------------------------------------------
         # This part uses vive controllers to control the end effectors
         if self.plugin.viveControl == True:
+            ## HEAD control HEAD cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2h:
                 rot_h = np.matmul(self.rot_h_offset, self.rot_matrix_h)
                 rot_h = np.append(rot_h, [[0, 0, 0]], 0)
@@ -508,14 +529,12 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                 [ori.x, ori.y, ori.z, ori.w] = quaternion_from_matrix(rot_h)
                 self.pub_cam_ctrl.publish(hm)
 
-            # if right wrist is controlled by head motion
+            ## HEAD control RIGHT HAND cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2r:
-                rot_r = np.matmul(self.rot_h_offset, self.rot_matrix_h)
-                #rot_r = np.matmul(rot_r, self.rot_r_last)
-                rot_r = np.matmul(self.rot_r_last, rot_r)
+                rot_r = self.cam_head_ctrl(self.rot_r_last)
                 #tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * self.scale[i] + self.loc_r_last[i] for i in range(3)]
                 tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_r_last[i] for i in range(3)]
-            # otherwise use left hand motion control left hand (default)
+            ## RIGHT HAND control RIGHT HAND cam
             else: 
                 # Expected orientation is R_init_hand_offset^(-1) * R_current_vive_pose * R_init_robot_pose
                 # Note that rot_r_offset has already been inversed.
@@ -523,12 +542,12 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                 rot_r = np.matmul(rot_r, self.rot_r_org)
                 tran_r = [(self.loc_r[i] - self.loc_r_offset[i]) * self.scale[i] + self.loc_r_org[i] for i in range(3)]
 
-            # if LEFT wrist is controlled by HEAD motion
+            ## HEAD control LEFT HAND cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2l:
                 rot_l = np.matmul(self.rot_h_offset, self.rot_matrix_h)
                 rot_l = np.matmul(rot_l, self.rot_l_last)
                 tran_l = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_l_last[i] for i in range(3)]
-            # otherwise use LEFT hand motion control LEFT HAND (default)
+            ## LEFT HAND control LEFT HAND cam
             else:
                 rot_l = np.matmul(self.rot_l_offset, self.rot_matrix_l)
                 rot_l = np.matmul(rot_l, self.rot_l_org)

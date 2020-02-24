@@ -284,14 +284,9 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         
         phi_h, theta_h, psi_h = euler_from_matrix(rot_h, 'rxyz')
         
-        rot = np.copy(rot_last)
-        rot = np.append(rot, [[0, 0, 0]], 0)
-        rot = np.append(rot, [[0], [0], [0], [1]], 1)
-        phi, theta, psi = euler_from_matrix(rot, 'rxyz')
-        phi -= theta_h#-theta_h
-        theta -= 0#psi
-        psi = psi
-        rot = euler_matrix(phi, theta, psi, 'rxyz')[:3, :3]
+        r_new = euler_matrix(-psi_h, theta_h, 0,'rxyz')[:3, :3]
+        
+        rot = np.matmul(rot_last, r_new)
         
         return rot
 
@@ -544,8 +539,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
             ## HEAD control LEFT HAND cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2l:
-                rot_l = np.matmul(self.rot_h_offset, self.rot_matrix_h)
-                rot_l = np.matmul(rot_l, self.rot_l_last)
+                rot_l = self.cam_head_ctrl(self.rot_l_last)
                 tran_l = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_l_last[i] for i in range(3)]
             ## LEFT HAND control LEFT HAND cam
             else:

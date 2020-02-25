@@ -277,18 +277,24 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
     def name(self): return "Vive Hybrid Control mode (head and hand)"
     
     ## Convert HEAD motion to HAND
-    def cam_head_ctrl(self, rot_last):
+    def cam_head_ctrl(self, tran_last, rot_last):
+        # Solving the rotation
         rot_h = np.matmul(self.rot_h_offset, self.rot_matrix_h)
         rot_h = np.append(rot_h, [[0, 0, 0]], 0)
         rot_h = np.append(rot_h, [[0], [0], [0], [1]], 1)
         
         phi_h, theta_h, psi_h = euler_from_matrix(rot_h, 'rxyz')
-        
         r_new = euler_matrix(-psi_h, theta_h, 0,'rxyz')[:3, :3]
-        
         rot = np.matmul(rot_last, r_new)
         
-        return rot
+        # Solving the translation
+        cam_rot = np.array([[0, 0, -1],[0, 1, 0],[1, 0, 0]])
+        tran_rot = np.matmul(rot_last, cam_rot)
+        tran_head = [(self.loc_h[i] - self.loc_h_offset[i]) for i in range(3)]
+        t = np.matmul(tran_rot, np.array(tran_head).transpose())
+        tran = [tran_last[i]+t[i] for i in range(3)]
+        
+        return tran, rot
 
     def init(self,world):
         self.world = world
@@ -526,9 +532,9 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
             ## HEAD control RIGHT HAND cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2r:
-                rot_r = self.cam_head_ctrl(self.rot_r_last)
-                #tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * self.scale[i] + self.loc_r_last[i] for i in range(3)]
-                tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_r_last[i] for i in range(3)]
+                tran_r, rot_r = self.cam_head_ctrl(self.loc_r_last, self.rot_r_last)
+                
+                #tran_r = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_r_last[i] for i in range(3)]
             ## RIGHT HAND control RIGHT HAND cam
             else: 
                 # Expected orientation is R_init_hand_offset^(-1) * R_current_vive_pose * R_init_robot_pose
@@ -539,8 +545,9 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
             ## HEAD control LEFT HAND cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2l:
-                rot_l = self.cam_head_ctrl(self.rot_l_last)
-                tran_l = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_l_last[i] for i in range(3)]
+                tran_l, rot_l = self.cam_head_ctrl(self.loc_l_last, self.rot_l_last)
+                #rot_l = self.cam_head_ctrl(self.rot_l_last)
+                #tran_l = [(self.loc_h[i] - self.loc_h_offset[i]) * 1.0 + self.loc_l_last[i] for i in range(3)]
             ## LEFT HAND control LEFT HAND cam
             else:
                 rot_l = np.matmul(self.rot_l_offset, self.rot_matrix_l)

@@ -45,16 +45,6 @@ viewToWorldScaleXY = 1
 #Configuration variable: where's the state server?
 system_state_addr = EbolabotSystemConfig.getdefault_ip('state_server_computer_ip',('localhost',4568))
 
-#imaging stuff
-
-# all possible camera control mode, enumration
-class ctrlModeEnu:
-    # h2h: head control head, showing head camera
-    # r2r: right hand control right manipulator, showing right wrist camera
-    # h2r: head control right manipulator, showing right wrist camera
-    # l2l: left hand control left manipulator, showing left wrist camera
-    # h2l: head control left manipulator, showing left wrist camera
-    h2h, r2r, h2r, l2l, h2l = range(5)
 
 class MyWidgetPlugin(GLWidgetPlugin):
     def __init__(self,taskGen):
@@ -146,7 +136,6 @@ class MyWidgetPlugin(GLWidgetPlugin):
             if args=='send':
                 self.sendMilestone = True
 
-
 class ServiceThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -160,6 +149,47 @@ class ServiceThread(threading.Thread):
             asyncore.loop(timeout = 1.0/self.updateFreq, count=1)
     def kill(self):
         self._kill = True
+        
+# all possible camera control mode, enumration
+class ctrlModeEnu:
+    # h2h: head control head, showing head camera
+    # r2r: right hand control right manipulator, showing right wrist camera
+    # h2r: head control right manipulator, showing right wrist camera
+    # l2l: left hand control left manipulator, showing left wrist camera
+    # h2l: head control left manipulator, showing left wrist camera
+    h2h, r2r, h2r, l2l, h2l = range(5)
+    
+class anchor_status():
+    def __init__(self, ee_start_loc, ee_start_rot):
+        self.raw_data = None
+        # raw input from vive
+        self.raw_rot = euler_matrix(0, 0, 0, 'rxyz')
+        self.raw_loc = [0, 0, 0]
+        # starting position (vive)
+        # [phi, theat, psi] & [x, y, z]
+        self.vive_rot0 = [0, 0, 0]
+        self.vive_loc0 = [0, 0, 0]
+        # starting position (robot)
+        self.ee_rot0 = euler_matrix(ee_start_rot[0], ee_start_rot[1], ee_start_rot[2], 'sxyz')
+        self.ee_loc0 = ee_start_loc
+        # current position, relative to the starting position (vive)
+        self.rot = euler_matrix(0, 0, 0)
+        self.rot_euler = [0, 0, 0]
+        self.loc = [0, 0, 0]
+        # last position before change the cam status
+        self.rot_last = euler_matrix(0, 0, 0, 'rxyz')
+        self.loc_last = [0, 0, 0]
+   
+    def callback_position(self, data):
+        rot = data.pose.orientation
+        tran = data.pose.position
+        self.raw_rot = quaternion_matrix([rot.x, rot.y, rot.z, rot.w])
+        self.loc = [tran.x-self.vive_loc0[0], tran.y-self.vive_loc0[0], tran.z-self.vive_loc0[0]]
+        r_now = list(euler_from_matrix(self.raw_rot, 'rxyz')
+        self.rot_euler = [r_now[i]-self.vive_rot0[i] for i in range i]
+        self.rot = euler_matrix(self.rot_euler[0], self.rot_euler[1], self.rot_euler[2], 'rxyz')
+        
+        self.raw_data = data
 
 class ViveCamCtrlTaskGenerator(TaskGenerator):
     """Allows the user to interact with the model by right clicking
@@ -174,34 +204,36 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.plugin = None
         self.q = None
 
-        self.x = None
-        self.y = None
-        self.z = None
-        self.w = None
-        self.rot_matrix_l = euler_matrix(0, 0, 0)[:3,:3]
-        self.rot_matrix_r = euler_matrix(0, 0, 0)[:3,:3]
-        self.loc_l = [0.6647,0.18159,1.3294]
-        self.loc_r = [0.6647,-0.18159,1.3294]
-        self.loc_h = [0, 0, 0]
-        self.rot_matrix_h = euler_matrix(0, 0, 0)[:3,:3]
+        #self.x = None
+        #self.y = None
+        #self.z = None
+        #self.w = None
+        self.hand_r = anchor_status([0.6647,-0.18159,1.3294], [-pi/2, pi/2, 0])
+        self.hand_l = anchor_status([0.6647,0.18159,1.3294], [pi/2, pi/2, 0])
+        #self.rot_matrix_l = euler_matrix(0, 0, 0)[:3,:3]
+        #self.rot_matrix_r = euler_matrix(0, 0, 0)[:3,:3]
+        #self.loc_l = [0.6647,0.18159,1.3294]
+        #self.loc_r = [0.6647,-0.18159,1.3294]
+        #self.loc_h = [0, 0, 0]
+        #self.rot_matrix_h = euler_matrix(0, 0, 0)[:3,:3]
 
-        self.loc_l_org = [0.6647,0.18159,1.3294]
-        self.loc_r_org = [0.6647,-0.18159,1.3294]
-        self.rot_l_org = euler_matrix(pi/2, pi/2, 0)[:3,:3]
-        self.rot_r_org = euler_matrix(-pi/2, pi/2, 0)[:3,:3]
+        #self.loc_l_org = [0.6647,0.18159,1.3294]
+        #self.loc_r_org = [0.6647,-0.18159,1.3294]
+        #self.rot_l_org = euler_matrix(pi/2, pi/2, 0)[:3,:3]
+        #self.rot_r_org = euler_matrix(-pi/2, pi/2, 0)[:3,:3]
 
-        self.loc_l_offset = [0, 0, 0]
-        self.rot_l_offset = np.eye(3)
-        self.loc_r_offset = [0, 0, 0]
-        self.rot_r_offset = np.eye(3)
-        self.loc_h_offset = [0, 0, 0]
-        self.rot_h_offset = np.eye(3)
+        #self.loc_l_offset = [0, 0, 0]
+        #self.rot_l_offset = np.eye(3)
+        #self.loc_r_offset = [0, 0, 0]
+        #self.rot_r_offset = np.eye(3)
+        #self.loc_h_offset = [0, 0, 0]
+        #self.rot_h_offset = np.eye(3)
         self.scale = [1.276, 1, 1.109]
 
-        self.loc_l_last = [0, 0, 0]
-        self.rot_l_last = np.eye(3)
-        self.loc_r_last = [0, 0, 0]
-        self.rot_r_last = np.eye(3)
+        #self.loc_l_last = [0, 0, 0]
+        #self.rot_l_last = np.eye(3)
+        #self.loc_r_last = [0, 0, 0]
+        #self.rot_r_last = np.eye(3)
 
         self.head_motion = PoseStamped()
         self.head_motion.pose.position.x = 0
@@ -312,14 +344,6 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         if any(v < 0 for v in self.left_arm_link_indices+self.right_arm_link_indices):
             raise ValueError("Robot in world does not have Baxter's torso?")
 
-        ## == subscribe marker position
-        #self.marker = Marker()
-        #self.base_height = 1.1
-        #self.marker_pos = [0.0, 0.0, 0.0]
-        #self.marker_pos_tf = [0.0, 0.0, 0.0]
-        ##TODO: Same, check node and init  in the base class
-        ##rospy.init_node('marker_listener', anonymous=True)
-
         #== auto tracking parameter
         self.tracking_speed_ratio = 1.0
         self.tracking_vel = [0.0, 0.0, 0.0]
@@ -335,7 +359,6 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.robotPoser.set(self.world.robot(0).getConfig())
         self.serviceThread = ServiceThread()
         self.serviceThread.start()
-        #self.glove_sub=rospy.Subscriber("/Marker_glove", Marker, self.callback, None)
 
         return True
 

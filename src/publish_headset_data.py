@@ -60,7 +60,8 @@ def vive_status_pub():
     pub_twist_l = rospy.Publisher('/vive/twist4', PoseStamped, queue_size=1)
 
     # This one is send to control the head camera
-    pub_head    = rospy.Publisher('/vive/twist5', PoseStamped, queue_size=1)
+    #pub_head    = rospy.Publisher('/vive/twist5', PoseStamped, queue_size=1)
+    pub_head     = rospy.Publisher('/vive/twist5', TransformStamped, queue_size=1)
     
     # Those are send to control the end effectors
     pub_pos_r = rospy.Publisher('/Right_Hand',TransformStamped, queue_size=1)
@@ -81,7 +82,7 @@ def vive_status_pub():
             buffer = buffer.split(',')
             #print buffer
 
-            head_pos, _= fillin_pos(buffer[1:7])
+            head_pos, head_tran= fillin_pos(buffer[1:7])
             right_pos, msg_r = fillin_pos(buffer[8:14])
             left_pos, msg_l  = fillin_pos(buffer[15:21])
 
@@ -93,7 +94,7 @@ def vive_status_pub():
             pub_pos_r.publish(msg_r)
             #pub_twist_l.publish(left_pos)
             pub_pos_l.publish(msg_l)
-            pub_head.publish(head_pos)
+            pub_head.publish(head_tran)
             pub_key_r.publish(joy_r)
             pub_key_l.publish(joy_l)
 

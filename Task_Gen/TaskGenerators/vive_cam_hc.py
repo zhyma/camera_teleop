@@ -192,22 +192,39 @@ class anchor_status():
         self.rot0 = self.raw_rot.copy()
         self.rot0_inv = np.linalg.inv(self.rot0)
         self.loc0 = self.raw_loc.copy()
+        return
    
     def callback(self, data):
-        rot = data.transformation.rotation
-        tran = data.transformation.translation
+        rot = data.transform.rotation
+        tran = data.transform.translation
         rot = quaternion_matrix([rot.x, rot.y, rot.z, rot.w])
+        loc = np.array([tran.x, tran.y, tran.z])
+        self.raw_rot = rot.copy()
+        self.raw_loc = loc.copy()
         self.rot = np.matmul(self.rot0_inv, rot)
-        self.loc = np.array([tran.x-self.loc0[0], tran.y-self.loc0[1], tran.z-self.loc0[2]])
+        self.loc = self.raw_loc-self.loc0
         
         self.raw_data = copy.deepcopy(data)
         return
 
-    def snapshot(hand):
-        hand.ee_rot_last = hand.ee_rot.copy()
-        hand.ee_loc_last = hand.ee_loc.copy()
+    def snapshot(self):
+        self.ee_rot_last = self.ee_rot.copy()
+        self.ee_loc_last = self.ee_loc.copy()
+        return
 
 # Skip eth_cam_ctrl, it is very straight forward.
+
+# eye-to-hand hand ctrl, calculated by using matrices
+def eth_hand_ctrl(hand):
+    # R = inv(H_0) * H_t
+    # final rotation should be: R_t = R * R_offset
+    # rotate base on world frame, then turn the hand to the desire direction
+    # otherwise the hand will rotate base on its' own frame.
+    # T_2^0 = T_1^0 * T_2^1, always "add" the rotation of the later one based on the former frame
+    hand.ee_rot = np.matmul(hand.rot, hand.ee_rot0)
+    # Translation will be done under base frame. No need to rotate it.
+    hand.ee_loc = hand.loc + hand.ee_loc0
+    return
 
 # eye-in-hand camera ctrl
 def eih_cam_ctrl(head, hand):
@@ -223,18 +240,6 @@ def eih_cam_ctrl(head, hand):
     t_new = np.matmul(tran_rot, np.append(head.loc, 0).transpose())[:3]
     hand.ee_loc = hand.ee_loc_last+t_new
 
-    return
-
-# eye-to-hand hand ctrl, calculated by using matrices
-def eth_hand_ctrl(hand):
-    # R = inv(H_0) * H_t
-    # final rotation should be: R_t = R * R_offset
-    # rotate base on world frame, then turn the hand to the desire direction
-    # otherwise the hand will rotate base on its' own frame.
-    # T_2^0 = T_1^0 * T_2^1, always "add" the rotation of the later one based on the former frame
-    hand.ee_rot = np.matmul(hand.rot, hand.ee_rot0)
-    # Translation will be done under base frame. No need to rotate it.
-    hand.ee_loc = hand.loc + hand.ee_loc0
     return
 
 # eye-in-hand hand ctrl
@@ -276,37 +281,15 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.plugin = None
         self.q = None
 
-        #self.x = None
-        #self.y = None
-        #self.z = None
-        #self.w = None
-        self.hand_r = anchor_status([0.6647,-0.18159,1.3294], [-pi/2, pi/2, 0])
-        self.hand_l = anchor_status([0.6647,0.18159,1.3294], [pi/2, pi/2, 0])
+        self.hm = PoseStamped()
+        pos = self.hm.pose.position
+        [pos.x, pos.y, pos.z] = [0, 0, 0]
+
+        self.hand_r = anchor_status([-pi/2, pi/2, 0], [0.6647,-0.18159,1.3294])
+        self.hand_l = anchor_status([pi/2, pi/2, 0], [0.6647,0.18159,1.3294])
         self.head = anchor_status([0, 0, 0], [0, 0, 0])
-        #self.rot_matrix_l = euler_matrix(0, 0, 0)[:3,:3]
-        #self.rot_matrix_r = euler_matrix(0, 0, 0)[:3,:3]
-        #self.loc_l = [0.6647,0.18159,1.3294]
-        #self.loc_r = [0.6647,-0.18159,1.3294]
-        #self.loc_h = [0, 0, 0]
-        #self.rot_matrix_h = euler_matrix(0, 0, 0)[:3,:3]
 
-        #self.loc_l_org = [0.6647,0.18159,1.3294]
-        #self.loc_r_org = [0.6647,-0.18159,1.3294]
-        #self.rot_l_org = euler_matrix(pi/2, pi/2, 0)[:3,:3]
-        #self.rot_r_org = euler_matrix(-pi/2, pi/2, 0)[:3,:3]
-
-        #self.loc_l_offset = [0, 0, 0]
-        #self.rot_l_offset = np.eye(3)
-        #self.loc_r_offset = [0, 0, 0]
-        #self.rot_r_offset = np.eye(3)
-        #self.loc_h_offset = [0, 0, 0]
-        #self.rot_h_offset = np.eye(3)
         self.scale = [1.276, 1, 1.109]
-
-        #self.loc_l_last = [0, 0, 0]
-        #self.rot_l_last = np.eye(3)
-        #self.loc_r_last = [0, 0, 0]
-        #self.rot_r_last = np.eye(3)
 
         self.head_motion = PoseStamped()
         self.head_motion.pose.position.x = 0
@@ -335,7 +318,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
         rospy.Subscriber('/Left_Hand', TransformStamped, self.hand_l.callback, queue_size = 1)
         rospy.Subscriber('/Right_Hand', TransformStamped, self.hand_r.callback, queue_size = 1)
-        rospy.Subscriber('/vive/twist5', PoseStamped, self.head.callback, queue_size=1)
+        rospy.Subscriber('/vive/twist5', TransformStamped, self.head.callback, queue_size=1)
         rospy.Subscriber('/vive/controller_LHR_FF7FBBC0/joy', Joy, self.callback_vive_r, queue_size = 1)
         rospy.Subscriber('/vive/controller_LHR_FFFB7FC3/joy', Joy, self.callback_vive_l, queue_size = 1)
         self.pub_cam = rospy.Publisher('/cam_select', String, queue_size=1)
@@ -358,48 +341,8 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.vive_base_button_r = data.buttons
         self.vive_base_axes_r = data.axes
         self.grippercent_r = self.vive_base_axes_r[2]*100
-    
-    
-    #def callback_arm_location_l(self,data):
-    #    rot = data.transform.rotation
-    #    tran = data.transform.translation
-    #    self.loc_l = [tran.x, tran.y, tran.z]
-    #    self.rot_matrix_l = quaternion_matrix([rot.x, rot.y, rot.z, rot.w])[:3,:3]
-    #
-    #def callback_arm_location_r(self,data):
-    #    rot = data.transform.rotation
-    #    tran = data.transform.translation
-    #    self.loc_r = [tran.x, tran.y, tran.z]
-    #    self.rot_matrix_r = quaternion_matrix([rot.x, rot.y, rot.z, rot.w])[:3,:3]
-
-    #def callback_head_location(self,data):
-    #    rot = data.pose.orientation
-    #    tran = data.pose.position
-    #    self.loc_h = [tran.x, tran.y, tran.z]
-    #    self.rot_matrix_h = quaternion_matrix([rot.x, rot.y, rot.z, rot.w])[:3,:3]
-    #    self.head_motion = data
 
     def name(self): return "Vive Hybrid Control mode (head and hand)"
-    
-    ## Convert HEAD motion to HAND
-    #def cam_head_ctrl(self, tran_last, rot_last):
-    #    # Solving the rotation
-    #    rot_h = np.matmul(self.rot_h_offset, self.rot_matrix_h)
-    #    rot_h = np.append(rot_h, [[0, 0, 0]], 0)
-    #    rot_h = np.append(rot_h, [[0], [0], [0], [1]], 1)
-    #    
-    #    phi_h, theta_h, psi_h = euler_from_matrix(rot_h, 'rxyz')
-    #    r_new = euler_matrix(-psi_h, theta_h, 0,'rxyz')[:3, :3]
-    #    rot = np.matmul(rot_last, r_new)
-    #    
-    #    # Solving the translation
-    #    cam_rot = np.array([[0, 0, -1],[0, 1, 0],[1, 0, 0]])
-    #    tran_rot = np.matmul(rot_last, cam_rot)
-    #    tran_head = [(self.loc_h[i] - self.loc_h_offset[i]) for i in range(3)]
-    #    t = np.matmul(tran_rot, np.array(tran_head).transpose())
-    #    tran = [tran_last[i]+t[i] for i in range(3)]
-    ##    
-    #    return tran, rot
 
     def init(self,world):
         self.world = world
@@ -541,19 +484,6 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         self.hand_l.reset()
                         self.hand_r.reset()
                         self.head.reset()
-                        # get the offset of the RIGHT controller
-                        #self.loc_r_offset = [i for i in self.loc_r]
-                        # rotation offset is R_curr^{-1}
-                        #self.rot_r_offset = np.linalg.inv(self.rot_matrix_r)
-
-                        # get the offset of the LEFT controller
-                        #self.loc_l_offset = [i for i in self.loc_l]
-                        # rotation offset is R_curr^{-1}
-                        #self.rot_l_offset = np.linalg.inv(self.rot_matrix_l)
-
-                        # get the offset of the HEAD
-                        #self.loc_h_offset = [i for i in self.loc_h]
-                        #self.rot_h_offset = np.linalg.inv(self.rot_matrix_h)
 
                 # stop teleoperating the robot
                 else:
@@ -575,12 +505,6 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     if self.plugin.ctrlMode == ctrlModeEnu.l2l:
                         # step "in" to the head control wrist mode
                         self.plugin.ctrlMode = ctrlModeEnu.h2l
-                        # save current end-effector state
-                        #rot_l = np.matmul(self.rot_l_offset, self.rot_matrix_l)
-                        #rot_l = np.matmul(rot_l, self.rot_l_org)
-                        #tran_l = [(self.loc_l[i] - self.loc_l_offset[i]) * self.scale[i] + self.loc_l_org[i] for i in range(3)]
-                        #self.loc_l_last = tran_l
-                        #self.rot_l_last = rot_l
                         self.hand_l.snapshot()
                         self.pub_cam.publish(String("h2l"))
                         print "head control left wrist camera"
@@ -595,11 +519,6 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         time.sleep(0.5)
                     if self.plugin.ctrlMode == ctrlModeEnu.r2r:
                         self.plugin.ctrlMode = ctrlModeEnu.h2r
-                        #rot_r = np.matmul(self.rot_r_offset, self.rot_matrix_r)
-                        #rot_r = np.matmul(rot_r, self.rot_r_org)
-                        #tran_r = [(self.loc_r[i] - self.loc_r_offset[i]) * self.scale[i] + self.loc_r_org[i] for i in range(3)]
-                        #self.loc_r_last = tran_r
-                        #self.rot_r_last = rot_r
                         self.hand_r.snapshot()
                         self.pub_cam.publish(String("h2r"))
                         print "head control right wrist camera"
@@ -621,15 +540,13 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         if self.plugin.viveControl == True:
             ## HEAD control HEAD cam
             if self.plugin.ctrlMode == ctrlModeEnu.h2h:
-                #rot_h = np.matmul(self.rot_h_offset, self.rot_matrix_h)
-                #rot_h = np.append(rot_h, [[0, 0, 0]], 0)
-                #rot_h = np.append(rot_h, [[0], [0], [0], [1]], 1)
-                hm = PoseStamped()
-                pos = hm.pose.position
-                [pos.x, pos.y, pos.z] = [0, 0, 0]
-                ori = hm.pose.orientation
+                # the declaration of hm is at init of this function
+                ori = self.hm.pose.orientation
                 [ori.x, ori.y, ori.z, ori.w] = quaternion_from_matrix(self.head.rot)
-                self.pub_cam_ctrl.publish(hm)
+                self.pub_cam_ctrl.publish(self.hm)
+                eth_hand_ctrl(self.hand_r)
+                eth_hand_ctrl(self.hand_l)
+
 
             ## HEAD control RIGHT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.h2r:
@@ -639,7 +556,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
             ## RIGHT HAND control RIGHT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.r2r:
                 eth_hand_ctrl(self.hand_r)
-                eit_hand_ctrl(self.hand_r, self.hand_l)
+                eih_task_ctrl(self.hand_r, self.hand_l)
 
             ## HEAD control LEFT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.h2l:
@@ -649,7 +566,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
             ## LEFT HAND control LEFT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.l2l:
                 eth_hand_ctrl(self.hand_l)
-                eit_hand_ctrl(self.hand_l, self.hand_r)
+                eih_task_ctrl(self.hand_l, self.hand_r)
             
 
             rot_l = self.hand_l.ee_rot[:3, :3]

@@ -56,12 +56,12 @@ def vive_status_pub():
     con_state = False
     con_cnt = 0
     # Don't know what is the /vive/twist3 or 4 is for.
-    pub_twist_r = rospy.Publisher('/vive/twist3', PoseStamped, queue_size=1)
-    pub_twist_l = rospy.Publisher('/vive/twist4', PoseStamped, queue_size=1)
+    #pub_twist_r = rospy.Publisher('/vive/twist3', PoseStamped, queue_size=1)
+    #pub_twist_l = rospy.Publisher('/vive/twist4', PoseStamped, queue_size=1)
 
     # This one is send to control the head camera
     #pub_head    = rospy.Publisher('/vive/twist5', PoseStamped, queue_size=1)
-    pub_head     = rospy.Publisher('/vive/twist5', TransformStamped, queue_size=1)
+    pub_head  = rospy.Publisher('/vive/twist5', TransformStamped, queue_size=1)
     
     # Those are send to control the end effectors
     pub_pos_r = rospy.Publisher('/Right_Hand',TransformStamped, queue_size=1)

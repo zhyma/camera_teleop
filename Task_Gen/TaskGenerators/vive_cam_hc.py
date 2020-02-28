@@ -208,6 +208,8 @@ class anchor_status():
         return
 
     def snapshot(self):
+        self.rot_last = self.rot.copy()
+        self.loc_last = self.loc.copy()
         self.ee_rot_last = self.ee_rot.copy()
         self.ee_loc_last = self.ee_loc.copy()
         return
@@ -216,11 +218,8 @@ class anchor_status():
 
 # eye-to-hand hand ctrl, calculated by using matrices
 def eth_hand_ctrl(hand):
-    # R = inv(H_0) * H_t
-    # final rotation should be: R_t = R * R_offset
-    # rotate base on world frame, then turn the hand to the desire direction
-    # otherwise the hand will rotate base on its' own frame.
-    # T_2^0 = T_1^0 * T_2^1, always "add" the rotation of the later one based on the former frame
+    # R = inv(Hand_0) * Hand_t
+    # final rotation should be: R_t = R * Ree_offset
     hand.ee_rot = np.matmul(hand.rot, hand.ee_rot0)
     # Translation will be done under base frame. No need to rotate it.
     hand.ee_loc = hand.loc + hand.ee_loc0
@@ -263,8 +262,8 @@ def eih_task_ctrl(cam_hand, op_hand, axis_type='zma'):
     #op_hand.ee_rot = np.matmul(r, op_hand.ee_rot0)
 
     # operation hand translation
-    t_new = np.matmul(cam_rot, np.append(op_hand.loc, 0).transpose())[:3]
-    op_hand.ee_loc += t_new
+    t_new = np.matmul(cam_rot, np.append(op_hand.loc-op_hand.loc_last, 0).transpose())[:3]
+    op_hand.ee_loc = t_new + op_hand.ee_loc_last
 
     return cam_rot
 
@@ -291,14 +290,14 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
         self.scale = [1.276, 1, 1.109]
 
-        self.head_motion = PoseStamped()
-        self.head_motion.pose.position.x = 0
-        self.head_motion.pose.position.y = 0
-        self.head_motion.pose.position.z = 0
-        self.head_motion.pose.orientation.x = 0
-        self.head_motion.pose.orientation.y = 0
-        self.head_motion.pose.orientation.z = 0
-        self.head_motion.pose.orientation.w = 1
+        # self.head_motion = PoseStamped()
+        # self.head_motion.pose.position.x = 0
+        # self.head_motion.pose.position.y = 0
+        # self.head_motion.pose.position.z = 0
+        # self.head_motion.pose.orientation.x = 0
+        # self.head_motion.pose.orientation.y = 0
+        # self.head_motion.pose.orientation.z = 0
+        # self.head_motion.pose.orientation.w = 1
 
         self.vive_base_button = [0,0,0,0]
         self.vive_base_axes = [0,0,0]
@@ -506,11 +505,13 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         # step "in" to the head control wrist mode
                         self.plugin.ctrlMode = ctrlModeEnu.h2l
                         self.hand_l.snapshot()
+                        self.hand_r.snapshot()
                         self.pub_cam.publish(String("h2l"))
                         print "head control left wrist camera"
                     else:
                         self.plugin.ctrlMode = ctrlModeEnu.l2l
                         self.pub_cam.publish(String("l2l"))
+                        self.hand_r.snapshot()
                         print "left hand control left wrist camera"
 
                 # right grip triggered
@@ -520,11 +521,13 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     if self.plugin.ctrlMode == ctrlModeEnu.r2r:
                         self.plugin.ctrlMode = ctrlModeEnu.h2r
                         self.hand_r.snapshot()
+                        self.hand_l.snapshot()
                         self.pub_cam.publish(String("h2r"))
                         print "head control right wrist camera"
                     else:
                         self.plugin.ctrlMode = ctrlModeEnu.r2r
                         self.pub_cam.publish(String("r2r"))
+                        self.hand_l.snapshot()
                         print "right hand control right wrist camera"
 
                 # switch to head control head camera for all other cases

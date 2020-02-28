@@ -62,6 +62,7 @@ class MyWidgetPlugin(GLWidgetPlugin):
         self.grasp=0.0
         self.viveControl = False
         self.ctrlMode = ctrlModeEnu.h2h
+        self.axis_type = 'zma'
 
     def initialize(self):
         GLWidgetPlugin.initialize(self)
@@ -130,6 +131,11 @@ class MyWidgetPlugin(GLWidgetPlugin):
         elif c == 'v':
             self.viveControl = not self.viveControl
 
+        elif c == 'a':
+            if self.axis_type == 'zma':
+                self.axis_type = 'tc'
+            else:
+                self.axis_type = 'zma'
 
     def eventfunc(self,type,args):
         """TODO: connect this up to GUI buttons"""
@@ -252,14 +258,24 @@ def eih_task_ctrl(cam_hand, op_hand, axis_type='zma'):
     # ignore phi and theta, assume that camera plane is vertical to the ground
     cam_rot = euler_matrix(0, 0, psi, 'rxyz')
 
-    # IF rotation IS NOT affected by camera rotation
-    # rotation still use the operation hand's frame
-    op_hand.ee_rot = np.matmul(op_hand.rot, op_hand.ee_rot0)
+    ## IF rotation IS NOT affected by camera rotation
+    ## rotation still use the operation hand's frame
+    #op_hand.ee_rot = np.matmul(op_hand.rot, op_hand.ee_rot0)
 
-    # IF rotation IS affected by camera rotation
-    # TODO: need to examine this
-    #r = np.matmul(op_hand.rot, cam_rot)
-    #op_hand.ee_rot = np.matmul(r, op_hand.ee_rot0)
+    ## IF rotation IS affected by camera rotation
+    ## TODO: need to examine this
+    phi, theta, psi = euler_from_matrix(op_hand.rot)
+    if axis_type == 'zma':
+        phi_new = -psi
+        theta_new = theta
+        psi_new = phi
+    else:
+        phi_new = -psi
+        theta_new = -theta
+        psi_new = -phi
+
+    r = euler_matrix(phi_new, theta_new, psi_new, 'rxyz')
+    op_hand.ee_rot = np.matmul(r, op_hand.ee_rot0)
 
     # operation hand translation
     t_new = np.matmul(cam_rot, np.append(op_hand.loc-op_hand.loc_last, 0).transpose())[:3]
@@ -411,6 +427,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
     ## MAIN LOGIC
     def do_logic(self):
         ''' retract arm to initial position '''
+        self._status = self.plugin.axis_type
         if self.plugin.initialPose:
             self.plugin.viveControl = False
             self.plugin.initialPose = False
@@ -554,22 +571,22 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
             ## HEAD control RIGHT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.h2r:
                 eih_cam_ctrl(self.head, self.hand_r)
-                eih_task_ctrl(self.hand_r, self.hand_l)
+                eih_task_ctrl(self.hand_r, self.hand_l, self.plugin.axis_type)
                 
             ## RIGHT HAND control RIGHT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.r2r:
                 eth_hand_ctrl(self.hand_r)
-                eih_task_ctrl(self.hand_r, self.hand_l)
+                eih_task_ctrl(self.hand_r, self.hand_l, self.plugin.axis_type)
 
             ## HEAD control LEFT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.h2l:
                 eih_cam_ctrl(self.head, self.hand_l)
-                eih_task_ctrl(self.hand_l, self.hand_r)
+                eih_task_ctrl(self.hand_l, self.hand_r, self.plugin.axis_type)
 
             ## LEFT HAND control LEFT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.l2l:
                 eth_hand_ctrl(self.hand_l)
-                eih_task_ctrl(self.hand_l, self.hand_r)
+                eih_task_ctrl(self.hand_l, self.hand_r, self.plugin.axis_type)
             
 
             rot_l = self.hand_l.ee_rot[:3, :3]

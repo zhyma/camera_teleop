@@ -14,19 +14,18 @@ RATE = 20
 def d2r(i):
     return float(i) * pi / 180.0
 
-def fillin_pos(data, rot=[0, 0, 0]):
+def fillin_pos(data, rot=[0, 0, 0, 0]):
     #rot is the offset of orientation for given frame
-    qt = tf.transformations.quaternion_from_euler(d2r(data[3]), d2r(data[4]), d2r(data[5]), 'rxyz')
     pose = PoseStamped()
     pose.header.stamp = rospy.Time.now()
     pose.header.frame_id = "world"
     pose.pose.position.x = float(data[0])
     pose.pose.position.y = float(data[1])
     pose.pose.position.z = float(data[2])
-    pose.pose.orientation.x = qt[0]
-    pose.pose.orientation.y = qt[1]
-    pose.pose.orientation.z = qt[2]
-    pose.pose.orientation.w = qt[3]
+    pose.pose.orientation.x = float(data[3])
+    pose.pose.orientation.y = float(data[4])
+    pose.pose.orientation.z = float(data[5])
+    pose.pose.orientation.w = float(data[6])
 
     msg = TransformStamped()
     msg.header.stamp = rospy.Time.now()
@@ -35,10 +34,10 @@ def fillin_pos(data, rot=[0, 0, 0]):
     msg.transform.translation.x = float(data[0])
     msg.transform.translation.y = float(data[1])
     msg.transform.translation.z = float(data[2])
-    msg.transform.rotation.x = qt[0]
-    msg.transform.rotation.y = qt[1]
-    msg.transform.rotation.z = qt[2]
-    msg.transform.rotation.w = qt[3]
+    msg.transform.rotation.x = float(data[3])
+    msg.transform.rotation.y = float(data[4])
+    msg.transform.rotation.z = float(data[5])
+    msg.transform.rotation.w = float(data[6])
 
     return pose, msg
 
@@ -74,7 +73,7 @@ def vive_status_pub():
     rate = rospy.Rate(RATE)
     while not rospy.is_shutdown():
         try:
-       	    sock.settimeout(1)
+            sock.settimeout(1)
             buffer, addr = sock.recvfrom(2048)
             if not con_state:
                 print "connected"
@@ -82,13 +81,13 @@ def vive_status_pub():
             buffer = buffer.split(',')
             #print buffer
 
-            head_pos, head_tran= fillin_pos(buffer[1:7])
-            right_pos, msg_r = fillin_pos(buffer[8:14])
-            left_pos, msg_l  = fillin_pos(buffer[15:21])
+            head_pos, head_tran= fillin_pos(buffer[1:8])
+            right_pos, msg_r = fillin_pos(buffer[9:16])
+            left_pos, msg_l  = fillin_pos(buffer[17:24])
 
             
-            joy_r = fillin_joy(buffer[22:29], 'controller_LHR_FF7FBBC0')
-            joy_l = fillin_joy(buffer[30:37], 'controller_LHR_FFFB7FC3')
+            joy_r = fillin_joy(buffer[25:32], 'controller_LHR_FF7FBBC0')
+            joy_l = fillin_joy(buffer[33:40], 'controller_LHR_FFFB7FC3')
 
             #pub_twist_r.publish(right_pos)
             pub_pos_r.publish(msg_r)

@@ -71,18 +71,28 @@ class videoThread(threading.Thread):
             print (e)
 
     def run(self):
+        y_offset = 10
+        x_offset = 430
         while self.running:
             if self.curr_cam == 'h2r':
+                res = cv2.resize(self.head_img, (200, 150))
                 frame = self.right_img.copy()
+                frame[y_offset:y_offset+ res.shape[0], x_offset:x_offset+res.shape[1]] = res
                 ctrl_text = 'Head ctrl right cam'
             elif self.curr_cam == 'r2r':
+                res = cv2.resize(self.head_img, (200, 150))
                 frame = self.right_img.copy()
+                frame[y_offset:y_offset+ res.shape[0], x_offset:x_offset+res.shape[1]] = res
                 ctrl_text = 'Rhand ctrl right cam'
             elif self.curr_cam == 'h2l':
+                res = cv2.resize(self.head_img, (200, 150))
                 frame = self.left_img.copy()
+                frame[y_offset:y_offset+ res.shape[0], x_offset:x_offset+res.shape[1]] = res
                 ctrl_text = 'Head ctrl left cam'
             elif self.curr_cam == 'l2l':
+                res = cv2.resize(self.head_img, (200, 150))
                 frame = self.left_img.copy()
+                frame[y_offset:y_offset+ res.shape[0], x_offset:x_offset+res.shape[1]] = res
                 ctrl_text = 'LHand ctrl left cam'
             else:
                 frame = self.head_img.copy()

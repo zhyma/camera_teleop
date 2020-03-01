@@ -242,16 +242,51 @@ def eih_cam_ctrl(head, hand):
 
     return
 
+# # eye-in-hand hand ctrl
+# def eih_task_ctrl(cam_hand, op_hand, axis_type='zma'):
+#     if axis_type == 'zma':
+#         frame_rot = np.array([[0, 0, -1, 0],[0, -1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
+#     else:
+#         frame_rot = np.array([[0, 0,  1, 0],[0,  1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
+#     cam_rot = np.matmul(cam_hand.ee_rot, frame_rot)
+#     phi, theta, psi = euler_from_matrix(cam_rot, 'rxyz')
+#     # ignore phi and theta, assume that camera plane is vertical to the ground
+#     cam_rot = euler_matrix(0, 0, psi, 'rxyz')
+
+#     ## IF rotation IS NOT affected by camera rotation
+#     ## rotation still use the operation hand's frame
+#     #op_hand.ee_rot = np.matmul(op_hand.rot, op_hand.ee_rot0)
+
+#     ## IF rotation IS affected by camera rotation
+#     ## TODO: need to examine this
+#     phi, theta, psi = euler_from_matrix(op_hand.rot)
+#     if axis_type == 'zma':
+#         phi_new = -psi
+#         theta_new = theta
+#         psi_new = phi
+#     else:
+#         phi_new = -psi
+#         theta_new = -theta
+#         psi_new = -phi
+
+#     r = euler_matrix(phi_new, theta_new, psi_new, 'rxyz')
+#     op_hand.ee_rot = np.matmul(op_hand.ee_rot0, r)
+
+#     # operation hand translation
+#     t_new = np.matmul(cam_rot, np.append(op_hand.loc-op_hand.loc_last, 0).transpose())[:3]
+#     op_hand.ee_loc = t_new + op_hand.ee_loc_last
+
+#     return cam_rot
+
 # eye-in-hand hand ctrl
 def eih_task_ctrl(cam_hand, op_hand, axis_type='zma'):
     if axis_type == 'zma':
-        frame_rot = np.array([[0, 0, -1, 0],[0, -1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
+        frame_rot = np.array([[0, 0, -1, 0],[0, 1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
     else:
-        frame_rot = np.array([[0, 0,  1, 0],[0,  1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
-    cam_rot = np.matmul(cam_hand.ee_rot, frame_rot)
-    phi, theta, psi = euler_from_matrix(cam_rot, 'rxyz')
+        frame_rot = np.array([[0, 0,  1, 0],[0, 1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
+    cam_rot = np.matmul(cam_hand.ee_rot0, frame_rot)
+    #phi, theta, psi = euler_from_matrix(cam_rot, 'rxyz')
     # ignore phi and theta, assume that camera plane is vertical to the ground
-    cam_rot = euler_matrix(0, 0, psi, 'rxyz')
 
     ## IF rotation IS NOT affected by camera rotation
     ## rotation still use the operation hand's frame
@@ -263,7 +298,7 @@ def eih_task_ctrl(cam_hand, op_hand, axis_type='zma'):
     if axis_type == 'zma':
         phi_new = -psi
         theta_new = theta
-        psi_new = phi
+        psi_new = -phi
     else:
         phi_new = -psi
         theta_new = -theta

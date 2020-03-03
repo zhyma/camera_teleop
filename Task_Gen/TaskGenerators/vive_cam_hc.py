@@ -52,10 +52,10 @@ q_tuckarm_right = [-0.58897088559570313, -0.9675583808532715, 1.2034079267211915
 
 viewToWorldScaleXY = 1
 
-rhand_op_init = [-pi/2, 0, pi/2]
-lhand_op_init = [pi/2, 0, -pi/2]
-rhand_cam_init = [-pi/4*3, 0, pi/2]
-lhand_cam_init = [pi/4*3, 0, -pi/2]
+rhand_op_init = [[-pi/2, 0, pi/2], [0.5647,-0.18159,1.1294]]
+lhand_op_init = [[pi/2, 0, -pi/2], [0.5647, 0.18159,1.1294]]
+rhand_cam_init = [[-pi/3*2, 0, pi/2], [0.5647,-0.18159,1.4294]]
+lhand_cam_init = [[pi/3*2, 0, -pi/2], [0.5647, 0.18159,1.4294]]
 scale = [1.276, 1, 1.109]
 
 #Configuration variable: where's the state server?
@@ -259,9 +259,9 @@ def eih_cam_ctrl(head, hand):
 def eih_task_ctrl(cam_hand, op_hand, axis_type='mirror'):
     frame_rot = np.array([[0, 0, -1, 0],[0, 1, 0, 0],[-1, 0, 0, 0], [0, 0, 0, 1]])
     if cam_hand.name == 'rhand':
-        ee_rot0 = euler_matrix(rhand_op_init)
+        ee_rot0 = euler_matrix(rhand_op_init[0])
     else:
-        ee_rot0 = euler_matrix(lhand_op_init)
+        ee_rot0 = euler_matrix(lhand_op_init[0])
     cam_rot = np.matmul(ee_rot0, frame_rot)
     #phi, theta, psi = euler_from_matrix(cam_rot, 'rxyz')
     # ignore phi and theta, assume that camera plane is vertical to the ground
@@ -304,8 +304,8 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         pos = self.hm.pose.position
         [pos.x, pos.y, pos.z] = [0, 0, 0]
 
-        self.hand_r = anchor_status('rhand', euler_matrix(rhand_op_init), [0.5647,-0.18159,1.1294])
-        self.hand_l = anchor_status('lhand', euler_matrix(lhand_op_init), [0.5647, 0.18159,1.1294])
+        self.hand_r = anchor_status('rhand', euler_matrix(rhand_op_init[0]), rhand_op_init[1])
+        self.hand_l = anchor_status('lhand', euler_matrix(lhand_op_init[0]), lhand_op_init[1])
         self.head = anchor_status('head', euler_matrix([0, pi/6, 0]), [0, 0, 0])
 
         self.vive_base_button = [0,0,0,0]
@@ -543,14 +543,14 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                             # h2h/r2r/h2r -> l2l
                             # cam  hand: move to cam  rotation
                             # task hand: move to init rotation, take a snapshot
-                            self.hand_l.ee_rot0 = euler_matrix(lhand_cam_init)
-                            self.hand_r.ee_rot0 = euler_matrix(rhand_op_init)
+                            self.hand_l.ee_rot0 = euler_matrix(lhand_cam_init[0])
+                            self.hand_l.ee_loc0 = lhand_cam_init[1]
+                            self.hand_r.ee_rot0 = euler_matrix(rhand_op_init[0])
+                            self.hand_r.ee_loc0 = rhand_op_init[1]
                             direct_ctrl(self.hand_l)
-                            #direct_ctrl(self.hand_r)
-                            self.hand_r.snapshot()
+                            direct_ctrl(self.hand_r)
                         self.plugin.ctrlMode = ctrlModeEnu.l2l
                         self.pub_cam.publish(String("l2l"))
-
                         self.hand_r.snapshot()
                         print "left hand control left wrist camera"
 
@@ -561,18 +561,20 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     if self.plugin.ctrlMode == ctrlModeEnu.r2r:
                         self.plugin.ctrlMode = ctrlModeEnu.h2r
                         self.hand_r.snapshot()
-                        # self.hand_l.snapshot()
                         self.pub_cam.publish(String("h2r"))
                         print "head control right wrist camera"
                     else:
                         if self.plugin.ctrlMode == ctrlModeEnu.h2r:
                             pass
                         else:
-                            self.hand_r.ee_rot0 = euler_matrix(rhand_cam_init)
-                            self.hand_l.ee_rot0 = euler_matrix(lhand_op_init)
+                            self.hand_r.ee_rot0 = euler_matrix(rhand_cam_init[0])
+                            self.hand_r.ee_loc0 = rhand_cam_init[1]
+                            self.hand_l.ee_rot0 = euler_matrix(lhand_op_init[0])
+                            self.hand_l.ee_loc0 = lhand_op_init[1]
+                            direct_ctrl(self.hand_l)
+                            direct_ctrl(self.hand_r)
                         self.plugin.ctrlMode = ctrlModeEnu.r2r
                         self.pub_cam.publish(String("r2r"))
-                        # direct_ctrl(self.hand_l)
                         self.hand_l.snapshot()
                         print "right hand control right wrist camera"
 
@@ -581,8 +583,10 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     while self.vive_base_button_l[0] == 1:
                         time.sleep(0.5)
 
-                    self.hand_l.ee_rot0 = euler_matrix(lhand_op_init)
-                    self.hand_r.ee_rot0 = euler_matrix(rhand_op_init)
+                    self.hand_l.ee_rot0 = euler_matrix(lhand_op_init[0])
+                    self.hand_l.ee_loc0 = lhand_op_init[1]
+                    self.hand_r.ee_rot0 = euler_matrix(rhand_op_init[0])
+                    self.hand_r.ee_loc0 = rhand_op_init[1]
                     # direct_ctrl(self.hand_l)
                     # direct_ctrl(self.hand_r)
                     self.pub_cam.publish(String("h2h"))

@@ -217,7 +217,10 @@ class anchor_status():
         self.raw_rot = rot.copy()
         self.raw_loc = loc.copy()
         self.rot = np.matmul(self.rot0_inv, rot)
-        self.loc = self.raw_loc-self.loc0
+        if self.name=='rhand' or self.name=='lhand':
+            self.loc = np.array([(self.raw_loc[i]-self.loc0[i])*scale[i] for i in range(3)])
+        else:
+            self.loc = self.raw_loc-self.loc0
         
         self.raw_data = copy.deepcopy(data)
         return
@@ -239,20 +242,41 @@ def direct_ctrl(anchor):
     anchor.ee_loc = anchor.loc + anchor.ee_loc0
     return
 
-# eye-in-hand camera ctrl
-def eih_cam_ctrl(head, hand):
-    # match head orientation to camera's
-    phi, theta, psi = euler_from_matrix(head.rot, 'rxyz')
-    r_new = euler_matrix([-psi, theta, 0])
-    hand.ee_rot = np.matmul(hand.ee_rot_last, r_new)
+# eye-in-hand camera ctrl by head
+def eih_cam_ctrl(hand, head=None, axis_type='mirror'):
+    if isinstance(head, anchor_status):
+        # match head orientation to camera's
+        phi, theta, psi = euler_from_matrix(head.rot, 'rxyz')
+        r_new = euler_matrix([-psi, theta, 0])
+        hand.ee_rot = np.matmul(hand.ee_rot_last, r_new)
 
-    # match head translation to camera's
-    cam_rot = np.array([[0, 0, -1, 0],[0, 1, 0, 0],[1, 0, 0, 0], [0, 0, 0, 1]])
-    #get the rotation of the translation
-    tran_rot = np.matmul(hand.ee_rot_last, cam_rot)
-    t_new = np.matmul(tran_rot, np.append(head.loc, 0).transpose())[:3]
-    hand.ee_loc = hand.ee_loc_last+t_new
+        # match head translation to camera's
+        cam_rot = np.array([[0, 0, -1, 0],[0, 1, 0, 0],[1, 0, 0, 0], [0, 0, 0, 1]])
+        #get the rotation of the translation
+        tran_rot = np.matmul(hand.ee_rot_last, cam_rot)
+        t_new = np.matmul(tran_rot, np.append(head.loc, 0).transpose())[:3]
+        hand.ee_loc = hand.ee_loc_last + t_new
+    elif axis_type == 'direct':
+        # only use hand to control cameras
+        direct_ctrL(hand)
+    else:
+        # similar to the eih_task_ctrl, use new frame for translation and rotation
+        tran_rot = np.eye(4)
+        if hand.name == 'rhand':
+            tran_rot = np.array([[0, -1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+        elif hand.name == 'lhand':
+            tran_rot = np.array([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
+        t_new = np.matmul(tran_rot, np.append(hand.loc, 0).transpose())[:3]
+        hand.ee_loc = hand.ee_loc0 + t_new
+
+        cam_rot = np.eye(4)
+        phi, theta, psi = euler_from_matrix(hand.rot, 'rxyz')
+        if hand.name == 'rhand' or hand.name == 'lhand':
+            cam_rot = euler_matrix([-psi, theta, 0])
+
+        hand.ee_rot = np.matmul(hand.ee_rot0, cam_rot)
+    
     return
 
 # eye-in-hand hand ctrl
@@ -321,6 +345,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         self.vive_base_axes_l = [1.0, 1.0, 1.0]
         self.vive_base_button_r = [0, 0, 0, 0]
         self.vive_base_button_l = [0, 0, 0, 0]
+        self.baseCommandVelocity = [0, 0, 0]
         # A timer to remove possible false trigger of buttons
         self.state_time = time.time()
 
@@ -610,22 +635,24 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
 
             ## HEAD control RIGHT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.h2r:
-                eih_cam_ctrl(self.head, self.hand_r)
+                eih_cam_ctrl(self.hand_r, self.head)
                 eih_task_ctrl(self.hand_r, self.hand_l, self.plugin.axis_type)
                 
             ## RIGHT HAND control RIGHT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.r2r:
-                direct_ctrl(self.hand_r)
+                #direct_ctrl(self.hand_r)
+                eih_cam_ctrl(self.hand_r, head=None, axis_type=self.plugin.axis_type)
                 eih_task_ctrl(self.hand_r, self.hand_l, self.plugin.axis_type)
 
             ## HEAD control LEFT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.h2l:
-                eih_cam_ctrl(self.head, self.hand_l)
+                eih_cam_ctrl(self.hand_l, self.head)
                 eih_task_ctrl(self.hand_l, self.hand_r, self.plugin.axis_type)
 
             ## LEFT HAND control LEFT HAND cam
             elif self.plugin.ctrlMode == ctrlModeEnu.l2l:
-                direct_ctrl(self.hand_l)
+                #direct_ctrl(self.hand_l)
+                eih_cam_ctrl(self.hand_l, head=None, axis_type=self.plugin.axis_type)
                 eih_task_ctrl(self.hand_l, self.hand_r, self.plugin.axis_type)
 
             # base movement and grippers are not effected

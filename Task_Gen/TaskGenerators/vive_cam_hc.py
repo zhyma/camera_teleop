@@ -32,7 +32,11 @@ import time
 from math import pi
 import copy
 
-import time
+import csv
+
+file_name = time.strftime("/home/terry/ros_ws/%m-%d_%H:%M:%S", time.gmtime())
+csv_file = open(file_name+'.csv', mode='w')
+spamwriter = csv.writer(csv_file, delimiter=',')
 
 # all possible camera control mode, enumration
 class ctrlModeEnu:
@@ -363,6 +367,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
         
         self.pub_state.publish(String('pause'))
         self.pub_cam.publish(String('h2h'))
+        spamwriter.writerow([str(time.time()), 'h2h'])
 
     def callback_vive_l(self,data):
         self.vive_base_button_l = data.buttons
@@ -556,6 +561,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         self.plugin.ctrlMode = ctrlModeEnu.h2l
                         self.hand_l.snapshot()
                         self.pub_cam.publish(String("h2l"))
+                        spamwriter.writerow([str(time.time()), 'h2l'])
                         print "head control left wrist camera"
                     else:
                         # direct_ctrl(self.hand_r)
@@ -576,6 +582,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                             direct_ctrl(self.hand_r)
                         self.plugin.ctrlMode = ctrlModeEnu.l2l
                         self.pub_cam.publish(String("l2l"))
+                        spamwriter.writerow([str(time.time()), 'l2l'])
                         self.hand_r.snapshot()
                         print "left hand control left wrist camera"
 
@@ -587,6 +594,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                         self.plugin.ctrlMode = ctrlModeEnu.h2r
                         self.hand_r.snapshot()
                         self.pub_cam.publish(String("h2r"))
+                        spamwriter.writerow([str(time.time()), 'h2r'])
                         print "head control right wrist camera"
                     else:
                         if self.plugin.ctrlMode == ctrlModeEnu.h2r:
@@ -600,6 +608,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                             direct_ctrl(self.hand_r)
                         self.plugin.ctrlMode = ctrlModeEnu.r2r
                         self.pub_cam.publish(String("r2r"))
+                        spamwriter.writerow([str(time.time()), 'r2r'])
                         self.hand_l.snapshot()
                         print "right hand control right wrist camera"
 
@@ -615,6 +624,7 @@ class ViveCamCtrlTaskGenerator(TaskGenerator):
                     # direct_ctrl(self.hand_l)
                     # direct_ctrl(self.hand_r)
                     self.pub_cam.publish(String("h2h"))
+                    spamwriter.writerow([str(time.time()), 'h2h'])
                     self.plugin.ctrlMode = ctrlModeEnu.h2h
 
                 pos_msg = self.pos_prepare()

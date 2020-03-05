@@ -34,7 +34,7 @@ import copy
 
 import csv
 
-file_name = time.strftime("/home/terry/ros_ws/%m-%d_%H:%M:%S", time.gmtime())
+file_name = time.strftime("/home/trina/zma3/%m-%d_%H:%M:%S", time.gmtime())
 csv_file = open(file_name+'.csv', mode='w')
 spamwriter = csv.writer(csv_file, delimiter=',')
 
@@ -58,9 +58,9 @@ viewToWorldScaleXY = 1
 
 rhand_op_init = [[-pi/2, 0, pi/2], [0.5647,-0.18159,1.1294]]
 lhand_op_init = [[pi/2, 0, -pi/2], [0.5647, 0.18159,1.1294]]
-rhand_cam_init = [[-pi/3*2, 0, pi/2], [0.5647,-0.18159,1.4294]]
-lhand_cam_init = [[pi/3*2, 0, -pi/2], [0.5647, 0.18159,1.4294]]
-scale = [1.276, 1, 1.109]
+rhand_cam_init = [[-pi/3*2, 0, pi/2], [0.6047,-0.32159,1.2294]]
+lhand_cam_init = [[pi/3*2, 0, -pi/2], [0.6047, 0.32159,1.2294]]
+scale = [1.5, 1, 1.109]
 
 #Configuration variable: where's the state server?
 system_state_addr = EbolabotSystemConfig.getdefault_ip('state_server_computer_ip',('localhost',4568))
